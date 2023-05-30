@@ -1,0 +1,11 @@
+{
+  "proxyMiddleware": [
+    {
+      "engine": "text",
+      "source": "https://archive.org/details/",
+      "type": "html",
+      "middleware": "function($, proxy_url, original_url_path) {\r\n  let data\r\n  data = $('input.js-tv3-init[value]').attr('value')\r\n  data = JSON.parse(data)\r\n  data = data['TV3.clipstream_clips']\r\n\r\n  const format_default = 'm3u8'\r\n  const format_regex   = /^.*\\.(m3u8|m3u|nget|ffmpeg)$/i\r\n  const format         = format_regex.test(original_url_path) ? original_url_path.replace(format_regex, '$1').toLowerCase() : format_default\r\n\r\n  const response = []\r\n\r\n  switch(format) {\r\n    case 'm3u8':\r\n      {\r\n        response.push(...[\r\n          '#EXTM3U',\r\n          '#EXT-X-VERSION:6',\r\n          '#EXT-X-TARGETDURATION:60',\r\n          '#EXT-X-PLAYLIST-TYPE:VOD'\r\n        ])\r\n\r\n        const duration_regex = /^.*t=(\\d+)\\/(\\d+).*$/\r\n        let match, time_start, time_end, time_duration_secs\r\n\r\n        data.forEach(url => {\r\n          match = duration_regex.exec(url)\r\n          if (match) {\r\n            time_start = parseInt(match[1], 10)\r\n            time_end   = parseInt(match[2], 10)\r\n\r\n            time_duration_secs = time_end - time_start\r\n\r\n            response.push('#EXTINF:' + time_duration_secs)\r\n          }\r\n          response.push(url)\r\n        })\r\n\r\n        response.push('#EXT-X-ENDLIST')\r\n      }\r\n      break\r\n    case 'm3u':\r\n      {\r\n        response.push(...data)\r\n      }\r\n      break\r\n    case 'nget':\r\n      {\r\n        data.forEach((url, index) => {\r\n          response.push(`${url}\\t${index + 1}.mp4`)\r\n        })\r\n      }\r\n      break\r\n    case 'ffmpeg':\r\n      {\r\n        data.forEach(url => {\r\n          response.push(`file '${url}'`)\r\n        })\r\n      }\r\n      break\r\n  }\r\n\r\n  $.html = () => response.join(\"\\n\")\r\n}",
+      "terminal": true
+    }
+  ]
+}
